@@ -1,16 +1,20 @@
 {
   "rewrites": [
     {
+      "source": "/playerkys/source.php",
+      "destination": "https://redeflixapi.store/playerkys/source.php"
+    },
+    {
+      "source": "/playback-resolve.php",
+      "destination": "https://redeflixapi.store/playback-resolve.php"
+    },
+    {
       "source": "/playerkys/:path*",
       "destination": "/api/catchall?raw=redeflixapi.store/playerkys/:path*"
     },
     {
       "source": "/js/:path*",
       "destination": "/api/catchall?raw=redeflixapi.store/js/:path*"
-    },
-    {
-      "source": "/playback-resolve.php",
-      "destination": "/api/catchall?raw=redeflixapi.store/playback-resolve.php"
     },
     {
       "source": "/p/:path*",
