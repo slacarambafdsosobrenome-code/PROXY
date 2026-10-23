@@ -1,9 +1,11 @@
 module.exports = async function handler(req, res) {
+  // CORS sempre
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST, PUT, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Max-Age', '86400');
     return res.status(204).end();
   }
 
@@ -31,7 +33,7 @@ module.exports = async function handler(req, res) {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       Referer: 'https://redeflixapi.store/playerkys/index.html',
       Origin: 'https://redeflixapi.store',
-      Accept: '*/*',
+      Accept: 'application/json, text/plain, */*',
       'X-Requested-With': 'RedeFlixPlayer',
     };
 
@@ -44,24 +46,20 @@ module.exports = async function handler(req, res) {
       redirect: 'follow',
     };
 
-    // ===== BODY (importante na Vercel) =====
+    // Body (Vercel às vezes já parseia)
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
       let bodyBuf = null;
 
-      // 1) body já parseado pela Vercel
       if (req.body !== undefined && req.body !== null && req.body !== '') {
         if (Buffer.isBuffer(req.body)) {
           bodyBuf = req.body;
         } else if (typeof req.body === 'string') {
-          bodyBuf = Buffer.from(req.body);
+          bodyBuf = Buffer.from(req.body, 'utf8');
         } else {
-          bodyBuf = Buffer.from(JSON.stringify(req.body));
-          if (!headers['Content-Type']) {
-            headers['Content-Type'] = 'application/json';
-          }
+          bodyBuf = Buffer.from(JSON.stringify(req.body), 'utf8');
+          if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
         }
       } else {
-        // 2) tenta ler a stream
         try {
           const chunks = [];
           for await (const chunk of req) chunks.push(chunk);
@@ -78,7 +76,7 @@ module.exports = async function handler(req, res) {
     const ct = (upstream.headers.get('content-type') || '').toLowerCase();
     const origin = `https://${req.headers.host}`;
 
-    // ===== HTML =====
+    // HTML
     if (ct.includes('text/html')) {
       let html = await upstream.text();
 
@@ -92,49 +90,30 @@ module.exports = async function handler(req, res) {
         /(src|href)=["'](\/(?:playerkys|js)[^"']*)["']/gi,
         (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
       );
-
       html = html.replace(
         /(src|href)=["']https?:\/\/redeflixapi\.store([^"']*)["']/gi,
         (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
       );
 
+      // source.php e assets ficam no MESMO origin (Vercel) → sem CORS
       const inject = `
 <script>
 (function () {
   var ORIGIN = ${JSON.stringify(origin)};
   var PREFIX = ORIGIN + '/p/redeflixapi.store';
-    function fixUrl(url) {
+  function fixUrl(url) {
     if (!url || typeof url !== 'string') return url;
     try {
-      // source e resolve NÃO passam pelo proxy (ticket amarrado ao device)
-      if (
-        url.indexOf('/playerkys/source.php') !== -1 ||
-        url.indexOf('playerkys/source.php') !== -1 ||
-        url.indexOf('/playback-resolve.php') !== -1 ||
-        url.indexOf('playback-resolve.php') !== -1
-      ) {
-        if (url.charAt(0) === '/') {
-          return 'https://redeflixapi.store' + url;
-        }
-        if (url.indexOf('https://redeflixapi.store') === 0) return url;
-        // se veio pelo nosso domínio
-        var idx = url.indexOf('/playerkys/source.php');
-        if (idx !== -1) return 'https://redeflixapi.store/playerkys/source.php' + url.slice(idx + '/playerkys/source.php'.length);
-        idx = url.indexOf('/playback-resolve.php');
-        if (idx !== -1) return 'https://redeflixapi.store/playback-resolve.php' + url.slice(idx + '/playback-resolve.php'.length);
-      }
-
       if (url.indexOf('/p/redeflixapi.store') !== -1) return url;
-
-      if (url.charAt(0) === '/' && (
-        url.indexOf('/playerkys/') === 0 ||
-        url.indexOf('/js/') === 0
-      )) {
-        return PREFIX + url;
-      }
-
       if (url.indexOf('https://redeflixapi.store') === 0) {
         return PREFIX + url.slice('https://redeflixapi.store'.length);
+      }
+      if (url.charAt(0) === '/' && (
+        url.indexOf('/playerkys/') === 0 ||
+        url.indexOf('/js/') === 0 ||
+        url.indexOf('/playback-resolve') === 0
+      )) {
+        return PREFIX + url;
       }
     } catch (e) {}
     return url;
@@ -164,30 +143,24 @@ module.exports = async function handler(req, res) {
       }
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'public, max-age=30');
       return res.status(upstream.status).send(html);
     }
 
-    // ===== JS: reescreve strings hardcoded =====
-    if (ct.includes('javascript') || ct.includes('ecmascript') || finalUrl.endsWith('.js')) {
+    // JS
+    if (ct.includes('javascript') || ct.includes('ecmascript') || /\.js(\?|$)/i.test(finalUrl)) {
       let js = await upstream.text();
       js = js
         .replace(/([\"'])\/playerkys\//g, `$1${origin}/p/redeflixapi.store/playerkys/`)
         .replace(/([\"'])\/js\//g, `$1${origin}/p/redeflixapi.store/js/`)
         .replace(/https?:\/\/redeflixapi\.store/g, origin + '/p/redeflixapi.store');
-
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       return res.status(upstream.status).send(js);
     }
 
-    // ===== resto =====
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    // JSON / resto (source.php, m3u8, etc.)
+    res.setHeader('Cache-Control', 'public, max-age=60');
     if (ct) res.setHeader('Content-Type', ct);
 
     const buffer = Buffer.from(await upstream.arrayBuffer());
