@@ -51,39 +51,21 @@ module.exports = async function handler(req, res) {
 // ==================== HELPERS ====================
 
 function rewriteDomains(html, origin) {
-  const domains = [
-    'redeflixapi\\.store',
-    'mgeb\\.top',
-    'mgeb\\.site',
-    'megaembed\\.com',
-    'playercdn\\.xyz',
-  ];
-  const pattern = domains.join('|');
-
-  // https://dominio/... e //dominio/...
-  const regex = new RegExp(
-    `(https?:)?\\/\\/((?:[a-z0-9\\-]+\\.)*(?:${pattern}))([^"'\\s>]*)`,
-    'gi'
+  // https://redeflixapi.store/... → /p/redeflixapi.store/...
+  html = html.replace(
+    /https?:\/\/((?:[a-z0-9\-]+\.)*redeflixapi\.store)([^"'\s>]*)/gi,
+    (_, host, path) => `${origin}/p/${host}${path || ''}`
   );
 
-  const map = new Map();
-  let m;
-  while ((m = regex.exec(html)) !== null) {
-    const full = m[0];
-    const host = m[2];
-    const rest = m[3] || '';
-    if (!map.has(full)) {
-      // /p/host/path?query
-      map.set(full, `${origin}/p/${host}${rest}`);
-    }
-  }
-  for (const [from, to] of map) {
-    html = html.split(from).join(to);
-  }
-
-  // caminhos relativos do site
+  // //redeflixapi.store/...
   html = html.replace(
-    /(src|href)=["'](\/(?:playerkys|js|player|css|playback-resolve)[^"']*)["']/gi,
+    /\/\/((?:[a-z0-9\-]+\.)*redeflixapi\.store)([^"'\s>]*)/gi,
+    (_, host, path) => `${origin}/p/${host}${path || ''}`
+  );
+
+  // caminhos absolutos /playerkys e /js
+  html = html.replace(
+    /(src|href)=["'](\/(?:playerkys|js|playback-resolve)[^"']*)["']/gi,
     (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
   );
 
