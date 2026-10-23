@@ -1,5 +1,4 @@
 module.exports = async function handler(req, res) {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
@@ -9,28 +8,23 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // path pode vir como array ou string
-    let pathParts = req.query.path;
-    if (!pathParts) {
-      return res.status(400).send('Missing target path');
-    }
-    if (!Array.isArray(pathParts)) {
-      pathParts = [pathParts];
+    const target = req.query.url;
+    if (!target || typeof target !== 'string') {
+      return res.status(400).send('Missing ?url=');
     }
 
-    const hostAndPath = pathParts.join('/');
-    if (!hostAndPath) {
-      return res.status(400).send('Empty path');
+    let parsed;
+    try {
+      parsed = new URL(target);
+    } catch {
+      return res.status(400).send('Invalid url');
     }
 
-    // monta a URL de destino + query string original
-    const url = new URL(req.url, `https://${req.headers.host}`);
-    const query = url.search; // já vem com o ?
+    if (parsed.protocol !== 'https:') {
+      return res.status(403).send('Only https allowed');
+    }
 
-    const targetUrl = 'https://' + hostAndPath + query;
-
-    const host = hostAndPath.split('/')[0].toLowerCase();
-
+    const host = parsed.hostname.toLowerCase();
     const allowed =
       host === 'redeflixapi.store' ||
       host.endsWith('.redeflixapi.store') ||
@@ -59,20 +53,14 @@ module.exports = async function handler(req, res) {
       redirect: 'follow',
     };
 
-    // repassa body em POST
     if (req.method === 'POST' || req.method === 'PUT') {
       const chunks = [];
-      for await (const chunk of req) {
-        chunks.push(chunk);
-      }
-      if (chunks.length) {
-        fetchOpts.body = Buffer.concat(chunks);
-      }
+      for await (const chunk of req) chunks.push(chunk);
+      if (chunks.length) fetchOpts.body = Buffer.concat(chunks);
     }
 
-    const upstream = await fetch(targetUrl, fetchOpts);
+    const upstream = await fetch(target, fetchOpts);
 
-    // headers de resposta
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
     res.setHeader('Access-Control-Allow-Headers', '*');
