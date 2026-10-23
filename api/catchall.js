@@ -3,18 +3,17 @@ module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
     res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Max-Age', '86400');
     return res.status(204).end();
   }
 
   try {
-    // path completo: redeflixapi.store/playerkys/assets/css/player.css
     let raw = req.query.raw;
     if (!raw || typeof raw !== 'string') {
       return res.status(400).send('Missing path. Ex: /p/redeflixapi.store/playerkys/index.html');
     }
     raw = decodeURIComponent(raw).replace(/^\/+/, '');
 
-    // monta URL final + query (exceto "raw")
     const u = new URL('https://' + raw);
     const incoming = new URL(req.url, 'http://x');
     incoming.searchParams.forEach((v, k) => {
@@ -36,12 +35,17 @@ module.exports = async function handler(req, res) {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        Referer: 'https://redeflixapi.store/',
+        Referer: 'https://redeflixapi.store/playerkys/index.html',
         Origin: 'https://redeflixapi.store',
         Accept: '*/*',
+        'X-Requested-With': 'RedeFlixPlayer',
       },
       redirect: 'follow',
     };
+
+    // repassa Content-Type do client no POST (source.php etc.)
+    const reqCt = req.headers['content-type'];
+    if (reqCt) fetchOpts.headers['Content-Type'] = reqCt;
 
     if (req.method === 'POST' || req.method === 'PUT') {
       const chunks = [];
@@ -53,7 +57,7 @@ module.exports = async function handler(req, res) {
     const ct = (upstream.headers.get('content-type') || '').toLowerCase();
     const origin = `https://${req.headers.host}`;
 
-    // ===== HTML: reescreve caminhos absolutos /playerkys e /js =====
+    // ===== HTML =====
     if (ct.includes('text/html')) {
       let html = await upstream.text();
 
@@ -64,7 +68,7 @@ module.exports = async function handler(req, res) {
         .replace(/<script[^>]*src=["'][^"']*tynt\.com[^"']*["'][\s\S]*?<\/script>/gi, '')
         .replace(/<script[^>]*src=["'][^"']*waust\.at[^"']*["'][\s\S]*?<\/script>/gi, '');
 
-      // /playerkys/...  e  /js/...  →  /p/redeflixapi.store/...
+      // /playerkys/... e /js/... → /p/redeflixapi.store/...
       html = html.replace(
         /(src|href)=["'](\/(?:playerkys|js)[^"']*)["']/gi,
         (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
@@ -76,13 +80,75 @@ module.exports = async function handler(req, res) {
         (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
       );
 
+      // intercepta fetch + XHR gerados em runtime (/playerkys/source.php etc.)
+      const inject = `
+<script>
+(function () {
+  var ORIGIN = ${JSON.stringify(origin)};
+  var PREFIX = ORIGIN + '/p/redeflixapi.store';
+
+  function fixUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    try {
+      if (url.indexOf('/p/redeflixapi.store') !== -1) return url;
+      if (url.indexOf('/api/proxy') !== -1) return url;
+
+      if (url.charAt(0) === '/' && (
+        url.indexOf('/playerkys/') === 0 ||
+        url.indexOf('/js/') === 0 ||
+        url.indexOf('/playback-resolve') === 0
+      )) {
+        return PREFIX + url;
+      }
+
+      if (url.indexOf('https://redeflixapi.store') === 0) {
+        return PREFIX + url.slice('https://redeflixapi.store'.length);
+      }
+      if (url.indexOf('http://redeflixapi.store') === 0) {
+        return PREFIX + url.slice('http://redeflixapi.store'.length);
+      }
+    } catch (e) {}
+    return url;
+  }
+
+  var _fetch = window.fetch;
+  if (_fetch) {
+    window.fetch = function (input, init) {
+      if (typeof input === 'string') {
+        input = fixUrl(input);
+      } else if (input && typeof Request !== 'undefined' && input instanceof Request) {
+        try {
+          input = new Request(fixUrl(input.url), input);
+        } catch (e) {}
+      }
+      return _fetch.call(this, input, init);
+    };
+  }
+
+  var _open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    arguments[1] = fixUrl(url);
+    return _open.apply(this, arguments);
+  };
+})();
+</script>`;
+
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/<head[^>]*>/i, (m) => m + inject);
+      } else {
+        html = inject + html;
+      }
+
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'public, max-age=30');
       return res.status(upstream.status).send(html);
     }
 
+    // ===== resto (css, js, m3u8, source.php json, etc.) =====
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD, POST');
+    res.setHeader('Access-Control-Allow-Headers', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     if (ct) res.setHeader('Content-Type', ct);
 
