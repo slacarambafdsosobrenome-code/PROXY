@@ -103,17 +103,39 @@ module.exports = async function handler(req, res) {
 (function () {
   var ORIGIN = ${JSON.stringify(origin)};
   var PREFIX = ORIGIN + '/p/redeflixapi.store';
-  function fixUrl(url) {
+    function fixUrl(url) {
     if (!url || typeof url !== 'string') return url;
     try {
+      // source e resolve NÃO passam pelo proxy (ticket amarrado ao device)
+      if (
+        url.indexOf('/playerkys/source.php') !== -1 ||
+        url.indexOf('playerkys/source.php') !== -1 ||
+        url.indexOf('/playback-resolve.php') !== -1 ||
+        url.indexOf('playback-resolve.php') !== -1
+      ) {
+        if (url.charAt(0) === '/') {
+          return 'https://redeflixapi.store' + url;
+        }
+        if (url.indexOf('https://redeflixapi.store') === 0) return url;
+        // se veio pelo nosso domínio
+        var idx = url.indexOf('/playerkys/source.php');
+        if (idx !== -1) return 'https://redeflixapi.store/playerkys/source.php' + url.slice(idx + '/playerkys/source.php'.length);
+        idx = url.indexOf('/playback-resolve.php');
+        if (idx !== -1) return 'https://redeflixapi.store/playback-resolve.php' + url.slice(idx + '/playback-resolve.php'.length);
+      }
+
       if (url.indexOf('/p/redeflixapi.store') !== -1) return url;
+
       if (url.charAt(0) === '/' && (
         url.indexOf('/playerkys/') === 0 ||
-        url.indexOf('/js/') === 0 ||
-        url.indexOf('/playback-resolve') === 0
-      )) return PREFIX + url;
-      if (url.indexOf('https://redeflixapi.store') === 0)
+        url.indexOf('/js/') === 0
+      )) {
+        return PREFIX + url;
+      }
+
+      if (url.indexOf('https://redeflixapi.store') === 0) {
         return PREFIX + url.slice('https://redeflixapi.store'.length);
+      }
     } catch (e) {}
     return url;
   }
