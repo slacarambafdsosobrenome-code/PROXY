@@ -2,7 +2,6 @@
   "rewrites": [
     { "source": "/filme/:id", "destination": "/api/filme/:id" },
     { "source": "/serie/:id/:season/:ep", "destination": "/api/serie/:id/:season/:ep" },
-    { "source": "/p/:path*", "destination": "/api/p/:path*" },
     { "source": "/:id(\\d+)", "destination": "/api/filme/:id" }
   ]
 }
