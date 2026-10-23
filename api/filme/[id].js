@@ -60,7 +60,7 @@ function rewriteDomains(html, origin) {
   ];
   const pattern = domains.join('|');
 
-  // https://dominio/...  e  //dominio/...
+  // https://dominio/... e //dominio/...
   const regex = new RegExp(
     `(https?:)?\\/\\/((?:[a-z0-9\\-]+\\.)*(?:${pattern}))([^"'\\s>]*)`,
     'gi'
@@ -72,24 +72,19 @@ function rewriteDomains(html, origin) {
     const full = m[0];
     const host = m[2];
     const rest = m[3] || '';
-    const realUrl = 'https://' + host + rest;
-
     if (!map.has(full)) {
-      map.set(full, `${origin}/api/proxy?url=${encodeURIComponent(realUrl)}`);
+      // /p/host/path?query
+      map.set(full, `${origin}/p/${host}${rest}`);
     }
   }
-
   for (const [from, to] of map) {
     html = html.split(from).join(to);
   }
 
-  // caminhos relativos (/playerkys/..., /js/...)
+  // caminhos relativos do site
   html = html.replace(
     /(src|href)=["'](\/(?:playerkys|js|player|css|playback-resolve)[^"']*)["']/gi,
-    (_, attr, p) => {
-      const realUrl = 'https://redeflixapi.store' + p;
-      return `${attr}="${origin}/api/proxy?url=${encodeURIComponent(realUrl)}"`;
-    }
+    (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
   );
 
   return html;
