@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/p/(.*)", "destination": "/api/catchall?raw=$1" },
     { "source": "/filme/:id", "destination": "/api/filme/:id" },
     { "source": "/serie/:id/:season/:ep", "destination": "/api/serie/:id/:season/:ep" },
     { "source": "/:id(\\d+)", "destination": "/api/filme/:id" }
