@@ -7,39 +7,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // vem do rewrite: /p/redeflixapi.store/playerkys/index.html
+    // path completo: redeflixapi.store/playerkys/assets/css/player.css
     let raw = req.query.raw;
     if (!raw || typeof raw !== 'string') {
-      return res.status(400).send('Missing path');
+      return res.status(400).send('Missing path. Ex: /p/redeflixapi.store/playerkys/index.html');
     }
+    raw = decodeURIComponent(raw).replace(/^\/+/, '');
 
-    // tira barra inicial se tiver
-    raw = raw.replace(/^\/+/, '');
+    // monta URL final + query (exceto "raw")
+    const u = new URL('https://' + raw);
+    const incoming = new URL(req.url, 'http://x');
+    incoming.searchParams.forEach((v, k) => {
+      if (k !== 'raw') u.searchParams.set(k, v);
+    });
+    const finalUrl = u.href;
+    const host = u.hostname.toLowerCase();
 
-    const targetUrl = 'https://' + raw + (req.url.includes('?') ? '?' + req.url.split('?').slice(1).join('?').replace(/^raw=[^&]*&?/, '').replace(/^&/, '') : '');
-
-    // limpa query "raw" se sobrou
-    let finalUrl;
-    try {
-      const u = new URL('https://' + raw);
-      // copia query da request, exceto "raw"
-      const incoming = new URL(req.url, 'http://localhost');
-      incoming.searchParams.forEach((v, k) => {
-        if (k !== 'raw') u.searchParams.set(k, v);
-      });
-      finalUrl = u.href;
-    } catch (e) {
-      return res.status(400).send('Invalid path: ' + raw);
-    }
-
-    const host = new URL(finalUrl).hostname.toLowerCase();
     const allowed =
       host === 'redeflixapi.store' ||
-      host.endsWith('.redeflixapi.store') ||
-      host === 'mgeb.top' || host.endsWith('.mgeb.top') ||
-      host === 'mgeb.site' || host.endsWith('.mgeb.site') ||
-      host === 'megaembed.com' || host.endsWith('.megaembed.com') ||
-      host === 'playercdn.xyz' || host.endsWith('.playercdn.xyz');
+      host.endsWith('.redeflixapi.store');
 
     if (!allowed) {
       return res.status(403).send('Domínio não permitido: ' + host);
@@ -65,19 +51,34 @@ module.exports = async function handler(req, res) {
 
     const upstream = await fetch(finalUrl, fetchOpts);
     const ct = (upstream.headers.get('content-type') || '').toLowerCase();
+    const origin = `https://${req.headers.host}`;
 
-    // remove ads em HTML
+    // ===== HTML: reescreve caminhos absolutos /playerkys e /js =====
     if (ct.includes('text/html')) {
       let html = await upstream.text();
+
+      // remove ads
       html = html
         .replace(/<script[^>]*src=["'][^"']*player-popunder[^"']*["'][\s\S]*?<\/script>/gi, '')
         .replace(/<script[^>]*src=["'][^"']*player-isolation[^"']*["'][\s\S]*?<\/script>/gi, '')
-        .replace(/<script[^>]*src=["'][^"']*tynt\.com[^"']*["'][\s\S]*?<\/script>/gi, '');
+        .replace(/<script[^>]*src=["'][^"']*tynt\.com[^"']*["'][\s\S]*?<\/script>/gi, '')
+        .replace(/<script[^>]*src=["'][^"']*waust\.at[^"']*["'][\s\S]*?<\/script>/gi, '');
+
+      // /playerkys/...  e  /js/...  →  /p/redeflixapi.store/...
+      html = html.replace(
+        /(src|href)=["'](\/(?:playerkys|js)[^"']*)["']/gi,
+        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
+      );
+
+      // https://redeflixapi.store/... → /p/redeflixapi.store/...
+      html = html.replace(
+        /(src|href)=["']https?:\/\/redeflixapi\.store([^"']*)["']/gi,
+        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
+      );
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Cache-Control', 'public, max-age=60');
-      // importante: não força X-Frame-Options
+      res.setHeader('Cache-Control', 'public, max-age=30');
       return res.status(upstream.status).send(html);
     }
 
@@ -89,6 +90,6 @@ module.exports = async function handler(req, res) {
     return res.status(upstream.status).send(buffer);
   } catch (e) {
     console.error(e);
-    return res.status(502).send('Proxy fail: ' + e.message);
+    return res.status(502).send('Proxy fail: ' + e.message + '\n\nraw=' + (req.query.raw || ''));
   }
 };
