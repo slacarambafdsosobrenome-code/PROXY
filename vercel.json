@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/playerkys/:path*",
+      "destination": "/api/catchall?raw=redeflixapi.store/playerkys/:path*"
+    },
+    {
+      "source": "/js/:path*",
+      "destination": "/api/catchall?raw=redeflixapi.store/js/:path*"
+    },
+    {
+      "source": "/playback-resolve.php",
+      "destination": "/api/catchall?raw=redeflixapi.store/playback-resolve.php"
+    },
+    {
       "source": "/p/:path*",
       "destination": "/api/catchall?raw=:path*"
     },
