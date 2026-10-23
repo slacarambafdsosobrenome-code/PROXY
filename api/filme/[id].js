@@ -56,10 +56,15 @@ function rewriteDomains(html, origin) {
     'mgeb\\.top',
     'mgeb\\.site',
     'megaembed\\.com',
-    'playercdn\\.xyz'
+    'playercdn\\.xyz',
   ];
   const pattern = domains.join('|');
-  const regex = new RegExp(`(https?:)?\\/\\/((?:[a-z0-9\\-]+\\.)*(?:${pattern}))([^"'\\s>]*)`, 'gi');
+
+  // https://dominio/...  e  //dominio/...
+  const regex = new RegExp(
+    `(https?:)?\\/\\/((?:[a-z0-9\\-]+\\.)*(?:${pattern}))([^"'\\s>]*)`,
+    'gi'
+  );
 
   const map = new Map();
   let m;
@@ -67,18 +72,24 @@ function rewriteDomains(html, origin) {
     const full = m[0];
     const host = m[2];
     const rest = m[3] || '';
+    const realUrl = 'https://' + host + rest;
+
     if (!map.has(full)) {
-      map.set(full, `${origin}/p/${host}${rest}`);
+      map.set(full, `${origin}/api/proxy?url=${encodeURIComponent(realUrl)}`);
     }
   }
+
   for (const [from, to] of map) {
     html = html.split(from).join(to);
   }
 
-  // caminhos relativos
+  // caminhos relativos (/playerkys/..., /js/...)
   html = html.replace(
-    /(src|href)=["'](\/(?:playerkys|js|player|css)[^"']*)["']/gi,
-    (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
+    /(src|href)=["'](\/(?:playerkys|js|player|css|playback-resolve)[^"']*)["']/gi,
+    (_, attr, p) => {
+      const realUrl = 'https://redeflixapi.store' + p;
+      return `${attr}="${origin}/api/proxy?url=${encodeURIComponent(realUrl)}"`;
+    }
   );
 
   return html;
