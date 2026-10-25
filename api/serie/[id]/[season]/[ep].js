@@ -178,7 +178,18 @@ function pickTitle(html, id) {
   m = html.match(/<title>([^<]+)<\/title>/i);
   if (m && !bad(m[1])) return clean(m[1]);
 
-  return 'Filme ' + id;
+  return 'Série ' + id;
+}
+
+// Tira o sufixo de episódio do título: "Nome - T1 E2", "Nome S01E02", "Nome 1x02"...
+function stripEpisode(t) {
+  const s = String(t);
+  const out = s
+    .replace(/(?:\s*[-–—|:·]\s*|\s+)(?:temporada|temp\.?|season|t)\s*\d+\s*[-–—|:·,]?\s*(?:epis[oó]dio|ep\.?|episode|e)\s*\d+.*$/i, '')
+    .replace(/(?:\s*[-–—|:·]\s*|\s+)s\d{1,2}\s*e\d{1,3}.*$/i, '')
+    .replace(/(?:\s*[-–—|:·]\s*|\s+)\d{1,2}x\d{1,3}.*$/i, '')
+    .trim();
+  return out || s;
 }
 
 function pickDesc(html) {
@@ -512,7 +523,11 @@ const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 const MPH = 'M8 5L13.5 8.4L13.5 15.6L8 19ZM13.5 8.4L19 12L19 12L13.5 15.6Z';
 
 function sendPlayer(res, videoUrl, html, id) {
-  const title = pickTitle(html, id);
+   const idParts = String(id).split('-');
+  const rawTitle = pickTitle(html, idParts[0]);
+  const serie = stripEpisode(rawTitle);
+  const epTag = idParts[1] && idParts[2] ? 'T' + idParts[1] + ' E' + idParts[2] : '';
+  const title = epTag ? serie + ' · ' + epTag : serie;
   const poster = pickPoster(html);
   const isHls = /\.m3u8(\?|$)/i.test(videoUrl);
   let vidOrigin = '';
@@ -523,6 +538,7 @@ function sendPlayer(res, videoUrl, html, id) {
     url: videoUrl,
     isHls,
     title,
+    serie,
     desc: pickDesc(html),
     poster,
     // versão pequena do poster para o fundo borrado (mais leve)
@@ -1934,7 +1950,7 @@ const CLIENT_JS = String.raw`
     if(FICHA.state!=='idle') return;
     FICHA.state='loading';
     var ctrl=window.AbortController?new AbortController():null, to=setTimeout(function(){ if(ctrl) ctrl.abort(); },12000);
-    fetch(location.pathname+'?ficha=1&nome='+encodeURIComponent(C.title||''),{credentials:'omit',signal:ctrl?ctrl.signal:undefined})
+    fetch(location.pathname+'?ficha=1&nome='+encodeURIComponent(C.serie||C.title||''),{credentials:'omit',signal:ctrl?ctrl.signal:undefined})
       .then(function(r){ return r.json(); })
       .then(function(j){ clearTimeout(to); FICHA.data=(j&&j.ok)?j:null; FICHA.state=(j&&j.ok)?'ok':'fail'; afterFicha(); })
       .catch(function(){ clearTimeout(to); FICHA.state='fail'; afterFicha(); });
@@ -2070,9 +2086,9 @@ const CLIENT_JS = String.raw`
   function markWatched(){
     if(watchedMarked) return; watchedMarked=true;
     var m=metaNow(), h=jget(KHIST,[]);
-    var key=norm(m.nome||C.title);
+   var key=norm(m.nome||C.serie||C.title);
     h=h.filter(function(x){ return norm(x.n)!==key; });
-    h.push({n:m.nome||C.title,g:(m.categorias||[]).slice(0,4),t:Date.now()});
+   h.push({n:m.nome||C.serie||C.title,g:(m.categorias||[]).slice(0,4),t:Date.now()});
     lsSet(KHIST,JSON.stringify(h.slice(-60)));
   }
   function computeNext(){
@@ -2082,7 +2098,7 @@ const CLIENT_JS = String.raw`
     hist.forEach(function(h){ done[norm(h.n)]=1; (h.g||[]).forEach(function(g){ g=norm(g); gw[g]=(gw[g]||0)+1; }); });
     readSaved().forEach(function(s){ (s.g||[]).forEach(function(g){ g=norm(g); gw[g]=(gw[g]||0)+0.6; }); });
     for(k in gw) if(gw[k]>maxw) maxw=gw[k];
-    var curG={}, me=d.meta, curName=norm((me&&me.nome)||C.title);
+    var curG={}, me=d.meta, curName=norm((me&&me.nome)||C.serie||C.title);
     if(me) (me.categorias||[]).forEach(function(g){ curG[norm(g)]=1; });
     var list=d.recs.filter(function(r){ return norm(r.nome)!==curName; }).map(function(r){
       var s=r.sc||0, best=0, bestG='', shared='';
