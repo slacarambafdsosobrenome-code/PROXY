@@ -156,11 +156,28 @@ function decodeEntities(s) {
 }
 
 function pickTitle(html, id) {
-  const m = html.match(/<title>([^<]+)<\/title>/i);
-  if (m) return decodeEntities(m[1].replace(/\s*-\s*RedeFlixApi.*/i, '').trim());
+  const bad = (t) => !t || /blocked/i.test(t);
+  const clean = (t) => decodeEntities(String(t).replace(/\s*-\s*RedeFlixApi.*/i, '').trim());
+
+  // 1) variável do player (mais confiável)
+  let m = html.match(/playerTitle\s*=\s*["']([^"']+)["']/);
+  if (m && !bad(m[1])) return clean(m[1]);
+
+  // 2) og:title
+  m = html.match(/property=["']og:title["']\s+content=["']([^"']+)["']/i)
+    || html.match(/content=["']([^"']+)["']\s+property=["']og:title["']/i);
+  if (m && !bad(m[1])) return clean(m[1]);
+
+  // 3) nome no seletor de servidor
+  m = html.match(/server-subtitle[\s\S]*?<strong>([^<]+)<\/strong>/i);
+  if (m && !bad(m[1])) return clean(m[1]);
+
+  // 4) <title> (só se não for Blocked)
+  m = html.match(/<title>([^<]+)<\/title>/i);
+  if (m && !bad(m[1])) return clean(m[1]);
+
   return 'Filme ' + id;
 }
-
 function pickDesc(html) {
   const m =
     html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
