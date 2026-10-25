@@ -33,8 +33,8 @@
       "destination": "/api/vs/filme/:id"
     },
     {
-      "source": "/vs/serie/:id/:season/:ep",
-      "destination": "/api/vs/serie/:id/:season/:ep"
+      "source": "/me/filme/:id", "destination": "/api/me/filme/:id" },
+{ "source": "/me/serie/:id/:season/:ep", "destination": "/api/me/serie/:id/:season/:ep"
     }
   ]
 }
