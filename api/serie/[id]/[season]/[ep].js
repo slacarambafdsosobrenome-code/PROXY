@@ -37,19 +37,21 @@ const UA =
 //  HANDLER
 // ============================================================================
 module.exports = async function handler(req, res) {
-  const q = req.query || {};
+   const q = req.query || {};
   const id = q.id;
+  const season = q.season;
+  const ep = q.ep;
 
   if (req.method === 'POST') return receiveTelemetry(req, res);
-  if (!id || !/^\d+$/.test(id)) {
-    return res.status(400).send('Use /filme/{tmdb_id}');
+  if (!id || !/^\d+$/.test(id) || !/^\d+$/.test(String(season || '')) || !/^\d+$/.test(String(ep || ''))) {
+    return res.status(400).send('Use /serie/{tmdb_id}/{temporada}/{episodio}');
   }
   if (q.ficha) return sendFicha(res, id, String(q.nome || ''));
 
   let stage = 'página';
   try {
     // 1) busca a página (gera o ticket)
-    const pageRes = await fetch(`${BASE}/filme/${id}`, {
+    const pageRes = await fetch(`${BASE}/serie/${id}/${season}/${ep}`, {
       headers: {
         'User-Agent': UA,
         Accept: 'text/html',
@@ -59,7 +61,7 @@ module.exports = async function handler(req, res) {
       redirect: 'follow',
     });
     if (!pageRes.ok) {
-      return sendError(res, 502, 'Não conseguimos abrir este filme agora.', 'página', 'HTTP ' + pageRes.status);
+      return sendError(res, 502, 'Não conseguimos abrir este episódio agora.', 'página', 'HTTP ' + pageRes.status);
     }
     const html = await pageRes.text();
 
@@ -87,12 +89,12 @@ module.exports = async function handler(req, res) {
         const resolved = await resolveRes.json().catch(() => ({}));
         ticket = resolved.launchTicket || null;
         if (resolved.url) {
-          return sendPlayer(res, resolved.url, html, id);
+         return sendPlayer(res, resolved.url, html, id + '-' + season + '-' + ep);
         }
       }
     }
     if (!ticket) {
-      return sendError(res, 404, 'Este filme ainda não tem reprodução disponível.', 'ticket', 'sem ticket');
+      return sendError(res, 404, 'Este episódio ainda não tem reprodução disponível.', 'ticket', 'sem ticket');
     }
 
     // 3) troca o ticket pelo link do vídeo (MESMA request = mesmo "dispositivo")
@@ -119,7 +121,7 @@ module.exports = async function handler(req, res) {
         srcJson.error ? String(srcJson.error) : 'HTTP ' + srcRes.status
       );
     }
-    return sendPlayer(res, srcJson.url, html, id);
+  return sendPlayer(res, srcJson.url, html, id + '-' + season + '-' + ep);
   } catch (e) {
     console.error('[player]', stage, e);
     return sendError(res, 500, 'Algo inesperado aconteceu ao carregar o filme.', stage, 'erro interno');
