@@ -3,8 +3,7 @@ module.exports = async function handler(req, res) {
   if (!id) {
     return res.status(400).send('Use /vs/filme/{tmdb_ou_imdb}');
   }
-
-  const src = `https://vidsrc.sh/embed/movie/${encodeURIComponent(id)}?ds_lang=pt`;
+const src = `https://vidsrc.mov/embed/movie/${encodeURIComponent(id)}?ds_lang=pt`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
