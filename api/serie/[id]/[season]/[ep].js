@@ -5,7 +5,7 @@
 //  GET  /filme/{tmdb_id}?ficha=1&nome=…   → JSON: ficha do filme + recomendações (vem da planilha)
 //  POST /filme/{tmdb_id}                  → telemetria técnica anônima (só chega se o espectador autorizar)
 // ============================================================================
-const BASE = 'https://redeflixapi.store';
+const BASE = 'https://redeflixapi.store'; 
 
 // ---- Ajustes rápidos -------------------------------------------------------
 const BRAND = 'PipocaFlix';
