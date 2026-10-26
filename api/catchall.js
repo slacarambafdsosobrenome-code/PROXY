@@ -24,15 +24,15 @@ module.exports = async function handler(req, res) {
     const finalUrl = u.href;
     const host = u.hostname.toLowerCase();
 
-    if (host !== 'redeflixapi.store' && !host.endsWith('.redeflixapi.store')) {
+    if (host !== 'redeflixapi.bar' && !host.endsWith('.redeflixapi.bar')) {
       return res.status(403).send('Domínio não permitido: ' + host);
     }
 
     const headers = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      Referer: 'https://redeflixapi.store/playerkys/index.html',
-      Origin: 'https://redeflixapi.store',
+      Referer: 'https://redeflixapi.bar/playerkys/index.html',
+      Origin: 'https://redeflixapi.bar',
       Accept: 'application/json, text/plain, */*',
       'X-Requested-With': 'RedeFlixPlayer',
     };
@@ -88,11 +88,11 @@ module.exports = async function handler(req, res) {
 
       html = html.replace(
         /(src|href)=["'](\/(?:playerkys|js)[^"']*)["']/gi,
-        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
+        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.bar${p}"`
       );
       html = html.replace(
-        /(src|href)=["']https?:\/\/redeflixapi\.store([^"']*)["']/gi,
-        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.store${p}"`
+        /(src|href)=["']https?:\/\/redeflixapi\.bar([^"']*)["']/gi,
+        (_, attr, p) => `${attr}="${origin}/p/redeflixapi.bar${p}"`
       );
 
       // source.php e assets ficam no MESMO origin (Vercel) → sem CORS
@@ -100,13 +100,13 @@ module.exports = async function handler(req, res) {
 <script>
 (function () {
   var ORIGIN = ${JSON.stringify(origin)};
-  var PREFIX = ORIGIN + '/p/redeflixapi.store';
+  var PREFIX = ORIGIN + '/p/redeflixapi.bar';
   function fixUrl(url) {
     if (!url || typeof url !== 'string') return url;
     try {
-      if (url.indexOf('/p/redeflixapi.store') !== -1) return url;
-      if (url.indexOf('https://redeflixapi.store') === 0) {
-        return PREFIX + url.slice('https://redeflixapi.store'.length);
+      if (url.indexOf('/p/redeflixapi.bar') !== -1) return url;
+      if (url.indexOf('https://redeflixapi.bar') === 0) {
+        return PREFIX + url.slice('https://redeflixapi.bar'.length);
       }
       if (url.charAt(0) === '/' && (
         url.indexOf('/playerkys/') === 0 ||
@@ -151,9 +151,9 @@ module.exports = async function handler(req, res) {
     if (ct.includes('javascript') || ct.includes('ecmascript') || /\.js(\?|$)/i.test(finalUrl)) {
       let js = await upstream.text();
       js = js
-        .replace(/([\"'])\/playerkys\//g, `$1${origin}/p/redeflixapi.store/playerkys/`)
-        .replace(/([\"'])\/js\//g, `$1${origin}/p/redeflixapi.store/js/`)
-        .replace(/https?:\/\/redeflixapi\.store/g, origin + '/p/redeflixapi.store');
+        .replace(/([\"'])\/playerkys\//g, `$1${origin}/p/redeflixapi.bar/playerkys/`)
+        .replace(/([\"'])\/js\//g, `$1${origin}/p/redeflixapi.bar/js/`)
+        .replace(/https?:\/\/redeflixapi\.bar/g, origin + '/p/redeflixapi.bar');
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       return res.status(upstream.status).send(js);
