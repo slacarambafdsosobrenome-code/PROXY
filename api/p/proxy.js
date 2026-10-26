@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     const host = parsed.hostname.toLowerCase();
     const allowed =
       host === 'redeflixapi.store' ||
-      host.endsWith('.redeflixapi.store') ||
+      host.endsWith('.redeflixapi.bar') ||
       host === 'mgeb.top' ||
       host.endsWith('.mgeb.top') ||
       host === 'mgeb.site' ||
@@ -46,8 +46,8 @@ module.exports = async function handler(req, res) {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        Referer: 'https://redeflixapi.store/',
-        Origin: 'https://redeflixapi.store',
+        Referer: 'https://redeflixapi.bar/',
+        Origin: 'https://redeflixapi.bar',
         Accept: '*/*',
       },
       redirect: 'follow',
