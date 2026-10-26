@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/playerkys/:path*",
-      "destination": "/api/catchall?raw=redeflixapi.store/playerkys/:path*"
+      "destination": "/api/catchall?raw=redeflixapi.bar/playerkys/:path*"
     },
     {
       "source": "/js/:path*",
-      "destination": "/api/catchall?raw=redeflixapi.store/js/:path*"
+      "destination": "/api/catchall?raw=redeflixapi.bar/js/:path*"
     },
     {
       "source": "/playback-resolve.php",
-      "destination": "/api/catchall?raw=redeflixapi.store/playback-resolve.php"
+      "destination": "/api/catchall?raw=redeflixapi.bar/playback-resolve.php"
     },
     {
       "source": "/p/:path*",
