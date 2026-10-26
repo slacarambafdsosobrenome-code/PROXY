@@ -26,8 +26,8 @@ module.exports = async function handler(req, res) {
 
     const host = parsed.hostname.toLowerCase();
     const allowed =
-      host === 'redeflixapi.store' ||
-      host.endsWith('.redeflixapi.store') ||
+      host === 'redeflixapi.bar' ||
+      host.endsWith('.redeflixapi.bar') ||
       host === 'mgeb.top' ||
       host.endsWith('.mgeb.top') ||
       host === 'mgeb.site' ||
@@ -46,8 +46,8 @@ module.exports = async function handler(req, res) {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        Referer: 'https://redeflixapi.store/',
-        Origin: 'https://redeflixapi.store',
+        Referer: 'https://redeflixapi.bar/',
+        Origin: 'https://redeflixapi.bar',
         Accept: '*/*',
       },
       redirect: 'follow',
@@ -149,8 +149,8 @@ function rewriteHtmlAssets(html, origin, pageUrl) {
         const u = new URL(abs);
         const h = u.hostname.toLowerCase();
         const ok =
-          h === 'redeflixapi.store' ||
-          h.endsWith('.redeflixapi.store') ||
+          h === 'redeflixapi.bar' ||
+          h.endsWith('.redeflixapi.bar') ||
           h === 'mgeb.top' ||
           h.endsWith('.mgeb.top') ||
           h === 'mgeb.site' ||
@@ -189,7 +189,7 @@ function rewriteHtmlAssets(html, origin, pageUrl) {
       if (!abs) return part;
       try {
         const u = new URL(abs);
-        if (u.hostname.includes('redeflixapi.store') || !url.includes('://')) {
+        if (u.hostname.includes('redeflixapi.bar') || !url.includes('://')) {
           return proxyUrl(origin, abs) + (rest ? ' ' + rest : '');
         }
       } catch {}
@@ -210,7 +210,7 @@ function rewriteCssUrls(css, origin, pageUrl) {
     try {
       const u = new URL(abs);
       if (
-        u.hostname.includes('redeflixapi.store') ||
+        u.hostname.includes('redeflixapi.bar') ||
         val.startsWith('/') ||
         val.startsWith('./') ||
         val.startsWith('../')
